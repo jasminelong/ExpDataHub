@@ -190,7 +190,7 @@ def create_function_mix_plot(data_dir):
     # 在指定位置添加函数名称
     ax4.text(-0.5, 0.1, 'Cos', fontsize=10, ha='right', va='center', color='green')
     ax4.text(-0.5, 0.5, 'Linear', fontsize=10, ha='right', va='center', color='blue')
-    ax4.text(-0.5, 0.9, 'Acos', fontsize=10, ha='right', va='center', color='darkred')
+    ax4.text(-0.5, 0.9, 'Arccos', fontsize=10, ha='right', va='center', color='darkred')
     
     # 在右图右侧添加竖写标签
     fig.text(0.91, 0.5, 'Normalized Subjective response [arb. unit]', fontsize=12, 

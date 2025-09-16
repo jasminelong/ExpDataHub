@@ -50,7 +50,7 @@ def calculate_mean_parameters(participant_files):
                 'V0': V0, 'A1': A1, 'φ1': φ1, 'A2': A2, 'φ2': φ2,
                 'trial': trial_number, 'file': file_path.name
             })
-            print(f"  试验 {trial_number}: V0={V0:.3f}, A1={A1:.3f}, A2={A2:.3f}")
+            print(f"  试验 {trial_number}: V0={V0:.3f}, A1={A1:.3f}, φ1={φ1:.3f},A2={A2:.3f}, φ2={φ2:.3f}")
         except Exception as e:
             print(f"  试验 {trial_number} 处理出错: {e}")
     
@@ -95,10 +95,24 @@ def plot_velocity_curve(V0, A1, φ1, A2, φ2, ax, participant_letter, fill_color
     ax.set_xlim(0.0, 2.0)
     ax.set_xticks([0.0, 0.5, 1.0, 1.5, 2.0])
     ax.set_xticklabels(['0', '0.5', '1', '1.5', '2'])
+        # 在图中显示参数值
+    param_text = (
+        f"V0={V0:.2f}\n"
+        f"A1={A1:.2f}, φ1={φ1:.2f}\n"
+        f"A2={A2:.2f}, φ2={φ2:.2f}"
+    )
+    ax.text(
+        0.02, 0.95, param_text,
+        transform=ax.transAxes,
+        fontsize=8,
+        verticalalignment='top',
+        bbox=dict(facecolor='white', alpha=0.6, edgecolor='none')
+    )
+
 
 def main():
     # 数据文件夹路径
-    data_folder = Path("public/BrightnessFunctionMixAndPhaseData")
+    data_folder = Path("../public/BrightnessFunctionMixAndPhaseData")
     
     # 查找LinearOnly文件
     linear_only_files = []
@@ -176,7 +190,7 @@ def main():
         mean_params, all_params = result
         participant_results[participant] = mean_params
         
-        print(f"平均参数: V0={mean_params['V0']:.3f}, A1={mean_params['A1']:.3f}, A2={mean_params['A2']:.3f}")
+        print(f"平均参数: V0={mean_params['V0']:.3f}, A1={mean_params['A1']:.3f}, φ1={mean_params['φ1']:.3f}, A2={mean_params['A2']:.3f}, φ2={mean_params['φ2']:.3f}")
         
         # 计算速度范围（以秒为横轴的两秒域）
         t_sec = np.linspace(0.0, 2.0, 1000)

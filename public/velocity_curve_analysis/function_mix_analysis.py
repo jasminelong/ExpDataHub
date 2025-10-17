@@ -232,7 +232,7 @@ def create_function_mix_plot(data_dir):
 
 def main():
     """主函数"""
-    data_dir = "../public/BrightnessFunctionMixAndPhaseData"
+    data_dir = "../BrightnessFunctionMixAndPhaseData"
     
     if not os.path.exists(data_dir):
         print(f"数据目录不存在: {data_dir}")

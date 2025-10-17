@@ -112,7 +112,7 @@ def plot_velocity_curve(V0, A1, φ1, A2, φ2, ax, participant_letter, fill_color
 
 def main():
     # 数据文件夹路径
-    data_folder = Path("../public/BrightnessFunctionMixAndPhaseData")
+    data_folder = Path("../BrightnessFunctionMixAndPhaseData")
     
     # 查找LinearOnly文件
     linear_only_files = []
@@ -228,13 +228,13 @@ def main():
         axes[i].set_ylim(y_min, y_max)
     
     plt.tight_layout()
-    plt.savefig('velocity_curves_linear_only_mean.png', dpi=300, bbox_inches='tight', transparent=True)
+    plt.savefig('velocity_curves_linear_only_mean_background_opaque.png', dpi=300, bbox_inches='tight', transparent=False)
     try:
         plt.show()
     except Exception:
         pass
     
-    print("\n速度曲线图已保存为 velocity_curves_linear_only_mean.png")
+    print("\n速度曲线图已保存为 velocity_curves_linear_only_mean_background_opaque.png")
 
 if __name__ == "__main__":
     main() 

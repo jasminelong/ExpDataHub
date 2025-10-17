@@ -228,7 +228,7 @@ def main():
         axes[i].set_ylim(y_min, y_max)
     
     plt.tight_layout()
-    plt.savefig('velocity_curves_linear_only_mean_background_opaque.png', dpi=300, bbox_inches='tight', transparent=False)
+    plt.savefig('velocity_curves_linear_only_mean_background_opaque.png', dpi=300, bbox_inches='tight', facecolor='white', transparent=False)
     try:
         plt.show()
     except Exception:

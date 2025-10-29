@@ -255,6 +255,7 @@ def load_velocity_results_from_linear_only(data_dir, participants_order, total_s
         if p in participants_order:
             velocity_results[p] = [(t_sec, velocity)]
     return velocity_results
+ 
 
 # ---- main plotting function ----
 def create_function_mix_plot(data_dir, total_seconds=4, samples_per_sec=200):
@@ -325,6 +326,7 @@ def create_function_mix_plot(data_dir, total_seconds=4, samples_per_sec=200):
 
     # 取得 linear-only velocity 结果（内嵌实现）
     velocity_results = load_velocity_results_from_linear_only(data_dir, participants_order, total_seconds)
+
 
     # 将 velocity 结果插值到 x 轴（若可用）
     velocity_interp = {}
@@ -429,13 +431,17 @@ def create_function_mix_plot(data_dir, total_seconds=4, samples_per_sec=200):
                 ax_vel.set_ylabel('Velocity')
         else:
             ax_vel.text(0.5, 0.5, "No velocity data", ha='center', va='center', fontsize=10, color='gray')
+ 
+        ax_vel.set_ylim(-1, 2.5)   # ← 第三排统一范围
 
         ax_top.set_xlim(0, total_seconds)
         ax_bot.set_xlim(0, total_seconds)
         ax_vel.set_xlim(0, total_seconds)
+
         ax_top.set_xticks([])  # 顶部不显示 x 刻度
         ax_bot.set_xticks([])  # 中间不显示 x 刻度
         ax_vel.set_xticks(list(range(0, total_seconds + 1)))
+
         if i == 0:
             ax_top.set_ylabel('Luminance (0–1)')
             ax_bot.set_ylabel('dL/dt (per second)')
@@ -464,7 +470,7 @@ def create_function_mix_plot(data_dir, total_seconds=4, samples_per_sec=200):
             dy = dys_by_participant[participant]
             val_at_1 = float(np.interp(1.0, x, y))
             deriv_at_1 = float(np.interp(1.0, x, dy))
-            print(f"{label} ({participant}): median knob = {median_knob:.3f}, L(1.0)={val_at_1:.3f}, dL/dt(1.0)={deriv_at_1:.3f}")
+            print(f"{label} ({participant}): median, L(1.0)={val_at_1:.3f}, dL/dt(1.0)={deriv_at_1:.3f}")
         else:
             print(f"{label} ({participant}): No data")
 

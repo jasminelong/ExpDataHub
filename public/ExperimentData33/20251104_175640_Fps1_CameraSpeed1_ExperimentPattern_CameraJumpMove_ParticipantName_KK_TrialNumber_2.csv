@@ -1,0 +1,2 @@
+FrondFrameNum, FrondFrameLuminance, BackFrameNum, BackFrameLuminance, Time, Knob, ResponsePattern, StepNumber, Amplitude, Velocity, FunctionRatio, CameraSpeed
+1, 1.000, 2, 0.000, 0.000, 1, Velocity, 0, 0, 2, 1.000, 1.000

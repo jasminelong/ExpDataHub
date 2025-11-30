@@ -35,8 +35,8 @@ def get_A1_from_file(p: Path):
         # 兼容部分文件把 A1 存在其它列名的情况（尝试 Velocity/Amplitude fallback）
         if "Amplitude1" in df.columns:
             return float(df["Amplitude1"].iloc[-1])
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error reading A1 from {p}: {e}")
     return np.nan
 
 def get_params_from_file(p: Path):
@@ -127,15 +127,32 @@ def analyze_and_plot_A1_comparison(group_paths_list, group_names=None, out_png=N
     ax.set_xticks(x)
     ax.set_xticklabels(group_names)
     ax.set_ylabel('A1')
-    ax.set_title('KK: A1 comparison (groups)')
+    ax.set_title('KK: A1 comparison')
     ax.grid(axis='y', alpha=0.3)
 
     # overlay individual points with jitter
     for i, vals in enumerate(values_all):
         if vals.size == 0:
             continue
-        jitter = np.random.normal(0, 0.05, size=vals.size)
-        ax.scatter(np.full(vals.shape, x[i]) + jitter, vals, color='k', alpha=0.8, s=30)
+        
+        # 增加抖动强度，特别是对于相同值的点
+        base_jitter = 0.1  # 基础抖动范围
+        unique_vals, counts = np.unique(vals, return_counts=True)
+        
+        # 为每个值生成抖动位置
+        x_positions = []
+        for val in vals:
+            count = counts[unique_vals == val][0]
+            if count > 1:
+                # 对于重复值，使用更大的抖动
+                jitter_strength = base_jitter * (1 + count * 0.3)
+            else:
+                jitter_strength = base_jitter * 0.5
+            
+            jitter = np.random.normal(0, jitter_strength)
+            x_positions.append(x[i] + jitter)
+        
+        ax.scatter(x_positions, vals, color='k', alpha=0.8, s=30)
 
     plt.tight_layout()
     if out_png is None:
@@ -181,28 +198,108 @@ def analyze_groups_params_and_plot(group_paths_list, group_names=None, out_png=N
             else:
                 print(f"  {k}: n={arr.size}, mean={np.nanmean(arr):.4f}, std={np.nanstd(arr):.4f}, values={np.round(arr,4).tolist()}")
 
-    # 为条形图准备 A1 数据并调用现有绘图函数（保持向后兼容）
-    a1_groups = [np.array(g['A1'], dtype=float) for g in groups_params]
-    analyze_and_plot_A1_comparison(a1_groups, group_names=group_names, out_png=out_png or "KK_A1_comparison.png")
+    # 为所有参数绘制条形图
+    params_to_plot = ['V0', 'A1', 'φ1', 'A2', 'φ2']
+    
+    # 创建子图
+    fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+    axes = axes.flatten()
+    
+    for param_idx, param in enumerate(params_to_plot):
+        ax = axes[param_idx]
+        
+        # 准备当前参数的数据
+        param_groups = [np.array(g[param], dtype=float) for g in groups_params]
+        
+        # 计算统计数据
+        means = []
+        stds = []
+        counts = []
+        for vals in param_groups:
+            counts.append(len(vals))
+            means.append(float(np.nan) if vals.size == 0 else float(np.nanmean(vals)))
+            stds.append(float(np.nan) if vals.size == 0 else float(np.nanstd(vals, ddof=0)))
+
+        # 画条形图（均值 + std error）
+        x = np.arange(len(group_names))
+        errs = [ (stds[i] / np.sqrt(counts[i])) if counts[i] > 0 else 0.0 for i in range(len(group_names)) ]
+
+        bars = ax.bar(x, means, yerr=errs, capsize=6, color=['#1f77b4','#2ca02c','#ff7f0e'][:len(group_names)])
+        ax.set_xticks(x)
+        ax.set_xticklabels(group_names, rotation=45, ha='right')
+        ax.set_ylabel(param)
+        ax.set_title(f'KK: {param} comparison')
+        ax.grid(axis='y', alpha=0.3)
+
+        # overlay individual points with jitter
+        for i, vals in enumerate(param_groups):
+            if vals.size == 0:
+                continue
+            
+            # 增加抖动强度，特别是对于相同值的点
+            base_jitter = 0.1  # 基础抖动范围
+            unique_vals, counts_unique = np.unique(vals, return_counts=True)
+            
+            # 为每个值生成抖动位置
+            x_positions = []
+            for val in vals:
+                count = counts_unique[unique_vals == val][0]
+                if count > 1:
+                    # 对于重复值，使用更大的抖动
+                    jitter_strength = base_jitter * (1 + count * 0.3)
+                else:
+                    jitter_strength = base_jitter * 0.5
+                
+                jitter = np.random.normal(0, jitter_strength)
+                x_positions.append(x[i] + jitter)
+            
+            ax.scatter(x_positions, vals, color='k', alpha=0.8, s=20)
+
+        # 打印当前参数的统计信息
+        print(f"\n=== {param} Bar Chart Data ===")
+        for name, cnt, m, s, vals in zip(group_names, counts, means, stds, param_groups):
+            if cnt == 0:
+                print(f"{name}: no valid {param} values found.")
+            else:
+                print(f"{name}: n={cnt}, mean {param} = {m:.4f}, std = {s:.4f}, values = {np.round(vals,4).tolist()}")
+
+    # 删除多余的子图
+    if len(params_to_plot) < len(axes):
+        axes[-1].remove()
+
+    plt.tight_layout()
+    if out_png is None:
+        out_png = "KK_all_parameters_comparison.png"
+    out_path = Path(out_png).resolve()
+    fig.savefig(out_path, dpi=300, bbox_inches='tight')
+    print(f"Saved all parameters comparison figure to: {out_path}  (exists={out_path.exists()})")
+
+    # 显示图表
+    try:
+        plt.show()
+    except Exception as e:
+        print("plt.show() failed:", e)
+        print("You can open the saved image file manually.")
+    plt.close(fig)
 
 def main():
     #之前的control数据
     extra_paths1 = [
-        Path(r"D:\vectionProject\public\BrightnessData\20250709_152809_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_1_BrightnessBlendMode_LinearOnly.csv"),
-        Path(r"D:\vectionProject\public\BrightnessData\20250709_151437_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_3_BrightnessBlendMode_LinearOnly.csv"),
-        Path(r"D:\vectionProject\public\BrightnessData\20250709_154001_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_2_BrightnessBlendMode_LinearOnly.csv"),
+        Path("../BrightnessData/20250709_152809_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_1_BrightnessBlendMode_LinearOnly.csv"),
+        Path("../BrightnessData/20250709_151437_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_3_BrightnessBlendMode_LinearOnly.csv"),
+        Path("../BrightnessData/20250709_154001_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_2_BrightnessBlendMode_LinearOnly.csv"),
     ]
     #现在的control数据
     extra_paths2 = [
-        Path(r"D:\vectionProject\public\ExperimentData3\20251102_181429_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_1_LinearOnly.csv"),
-        Path(r"D:\vectionProject\public\ExperimentData3\20251102_180357_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_2_LinearOnly.csv"),
-        Path(r"D:\vectionProject\public\ExperimentData3\20251102_181106_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_3_LinearOnly.csv"),
+        Path("../ExperimentData3/20251102_181429_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_1_LinearOnly.csv"),
+        Path("../ExperimentData3/20251102_180357_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_2_LinearOnly.csv"),
+        Path("../ExperimentData3/20251102_181106_Fps1_CameraSpeed1_ExperimentPattern_Phase_ParticipantName_KK_TrialNumber_3_LinearOnly.csv"),
     ]
     #现在的反方向数据
     extra_paths3 = [
-        Path(r"D:\vectionProject\public\ExperimentData33\20251104_155123_Fps1_CameraSpeed1_ExperimentPattern_CameraJumpMove_ParticipantName_KK_TrialNumber_1.csv"),
-        Path(r"D:\vectionProject\public\ExperimentData33\20251104_155424_Fps1_CameraSpeed1_ExperimentPattern_CameraJumpMove_ParticipantName_KK_TrialNumber_2.csv"),
-        Path(r"D:\vectionProject\public\ExperimentData33\20251104_155959_Fps1_CameraSpeed1_ExperimentPattern_CameraJumpMove_ParticipantName_KK_TrialNumber_3.csv"),
+        Path("../ExperimentData33/20251104_155123_Fps1_CameraSpeed1_ExperimentPattern_CameraJumpMove_ParticipantName_KK_TrialNumber_1.csv"),
+        Path("../ExperimentData33/20251104_155424_Fps1_CameraSpeed1_ExperimentPattern_CameraJumpMove_ParticipantName_KK_TrialNumber_2.csv"),
+        Path("../ExperimentData33/20251104_155959_Fps1_CameraSpeed1_ExperimentPattern_CameraJumpMove_ParticipantName_KK_TrialNumber_3.csv"),
     ]
     # Debug/analysis: 检查文件是否存在并打印列名样例，便于定位为什么没有打印/绘图
     for grp_name, paths in zip(["KK_prev_control", "KK_now_control", "KK_reverse"], [extra_paths1, extra_paths2, extra_paths3]):
@@ -215,12 +312,12 @@ def main():
                 except Exception as _e:
                     print(f"  failed to read sample: {_e}")
 
-    # 提取并打印 V0,A1,φ1,A2,φ2 并绘制 A1 比较图
+    # 提取并打印 V0,A1,φ1,A2,φ2 并绘制所有参数比较图
     try:
         analyze_groups_params_and_plot(
             [extra_paths1, extra_paths2, extra_paths3],
             group_names=["KK_prev_control", "KK_now_control", "KK_reverse"],
-            out_png="KK_A1_comparison.png"
+            out_png="KK_all_parameters_comparison.png"
         )
     except Exception as e:
         print("Group analysis failed:", e)

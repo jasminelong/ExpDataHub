@@ -96,9 +96,11 @@ def analyze_experiment55(data_dir=r"D:\vectionProject\public\ExperimentData55", 
         print("data dir not found:", data_path)
         return
 
-    # conditions to include (ExperimentPattern contains these)
+    # conditions to include (order used for plotting).
+    # 包含历史参数作为 LuminanceLinearMix_Old，脚本中读取到的文件中 LuminanceLinearMix 视为 New
     conds = [
-        "LuminanceLinearMix",
+        "LuminanceLinearMix_Old",
+        "LuminanceLinearMix_New",
         "CameraJumpMoveMinusCompensate",
         "CameraJumpMovePlusCompensate",
         "LuminanceMinusCompensate",
@@ -112,12 +114,16 @@ def analyze_experiment55(data_dir=r"D:\vectionProject\public\ExperimentData55", 
     rows = []
     for p in files:
         name = p.name
-        # find condition by substring in filename
+        # map filename substring to base condition
         cond = None
-        for c in conds:
-            if c in name:
-                cond = c
-                break
+        if "LuminanceLinearMix" in name:
+            # 把读取到的 LuminanceLinearMix CSV 标为 New；历史参数已放到 LuminanceLinearMix_Old
+            cond = "LuminanceLinearMix_New"
+        else:
+            for base in ("CameraJumpMoveMinusCompensate","CameraJumpMovePlusCompensate","LuminanceMinusCompensate","LuminancePlusCompensate"):
+                if base in name:
+                    cond = base
+                    break
         if cond is None:
             continue
         # find subject code
@@ -143,14 +149,15 @@ def analyze_experiment55(data_dir=r"D:\vectionProject\public\ExperimentData55", 
             "R": R, "MSE": MSE
         })
 
-    # --- add previous LuminanceLinearMix ModParams as an extra condition 'LuminanceLinearMix_Previous' ---
+    # --- add previous LuminanceLinearMix ModParams as an extra condition 'LuminanceLinearMix_Old' ---
     prev_modparams = {
         "YAMA_A": (0.992, 0.540, 1.849, -0.528, 1.462),
         "OMU_B":  (1.131, 0.522, 2.528, -0.223, 3.525),
         "ONO_C":  (1.067, 0.632, 3.663, 0.461, 5.123),
         "HOU_D":  (0.951, 0.275, 3.031, 0.920, 5.982),
         "LL_E":   (1.027, -0.278, 1.849, -0.292, 3.728),
-        "KK_F":   (1.129, 0.815, 3.462, 0.860, 5.854)
+        # 如果你也要包含 KK_F 的历史值，可取消下一行注释
+        # "KK_F":   (1.129, 0.815, 3.462, 0.860, 5.854)
     }
     for subj, tup in prev_modparams.items():
         V0,A1,phi1,A2,phi2 = tup
@@ -159,7 +166,7 @@ def analyze_experiment55(data_dir=r"D:\vectionProject\public\ExperimentData55", 
         rows.append({
             "file": "PREV_MODPARAMS",
             "subject": subj,
-            "condition": "LuminanceLinearMix_Previous",
+            "condition": "LuminanceLinearMix_Old",
             "V0": V0, "A1": A1, "A2": A2, "φ1": phi1, "φ2": phi2,
             "R": R, "MSE": MSE
         })
@@ -247,8 +254,8 @@ def analyze_experiment55(data_dir=r"D:\vectionProject\public\ExperimentData55", 
         ax.set_xlabel("condition")
         ax.set_ylabel("R")
         ax.set_xticks(range(len(pv_R.index)))
-        ax.set_xticklabels([_wrap2(x) for x in pv_R.index], rotation=0, fontsize=8)
-        ax.legend(title="subject", bbox_to_anchor=(1.02,1), loc="upper left", fontsize=8)
+        ax.set_xticklabels([_wrap2(x) for x in pv_R.index], rotation=0, fontsize=6)
+        ax.legend(title="subject", bbox_to_anchor=(1.02,1), loc="upper left", fontsize=6)
         ax.grid(alpha=0.2)
         plt.tight_layout()
         plt.subplots_adjust(bottom=0.25)
@@ -266,9 +273,9 @@ def analyze_experiment55(data_dir=r"D:\vectionProject\public\ExperimentData55", 
         ax.set_xlabel("condition")
         ax.set_ylabel("MSE")
         ax.set_xticks(range(len(pv_MSE.index)))
-        ax.set_xticklabels([_wrap2(x) for x in pv_MSE.index], rotation=0, fontsize=8)
+        ax.set_xticklabels([_wrap2(x) for x in pv_MSE.index], rotation=0, fontsize=6)
         ax.set_yscale('linear')
-        ax.legend(title="subject", bbox_to_anchor=(1.02,1), loc="upper left", fontsize=8)
+        ax.legend(title="subject", bbox_to_anchor=(1.02,1), loc="upper left", fontsize=6)
         ax.grid(alpha=0.2)
         plt.tight_layout()
         plt.subplots_adjust(bottom=0.25)
@@ -276,6 +283,30 @@ def analyze_experiment55(data_dir=r"D:\vectionProject\public\ExperimentData55", 
         fig.savefig(outp, dpi=200, bbox_inches='tight')
         print("Saved", outp)
         plt.close(fig)
+
+    # 折线图：A1, A2, V0（每个 subject 一条线，x 为 condition）
+    for metric_key, ylabel in (("mean_V0","V0"), ("mean_A1","A1"), ("mean_A2","A2")):
+        pv_metric = stats.pivot(index="condition", columns="subject", values=metric_key).reindex(index=conds)
+        if pv_metric.notna().any().any():
+            fig, ax = plt.subplots(figsize=(max(8, pv_metric.shape[0]*1.2), 5))
+            pv_metric.plot(ax=ax, marker='o', linewidth=1.2)
+            ax.set_title(f"{ylabel} across conditions (subjects as lines)")
+            ax.set_xlabel("condition")
+            ax.set_ylabel(ylabel)
+            ax.set_xticks(range(len(pv_metric.index)))
+            ax.set_xticklabels([_wrap2(x) for x in pv_metric.index], rotation=0, fontsize=6)
+            ax.grid(alpha=0.2)
+            ax.legend(title="subject", bbox_to_anchor=(1.02,1), loc="upper left", fontsize=6)
+            plt.tight_layout()
+            plt.subplots_adjust(bottom=0.25)
+            outp = Path.cwd() / f"{out_prefix}_{ylabel}_lines_by_condition.png"
+            fig.savefig(outp, dpi=200, bbox_inches='tight')
+            print("Saved", outp)
+            try:
+                plt.show()
+            except Exception:
+                pass
+            plt.close(fig)
 
     print("Done.")
 
